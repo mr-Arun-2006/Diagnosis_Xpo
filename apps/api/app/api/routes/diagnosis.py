@@ -1,18 +1,10 @@
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 
-# The Docker image copies packages/quant_engine to /app/quant_engine.
-ROOT = Path(__file__).resolve().parents[5]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
-from quant_engine.diagnosis import diagnose  # noqa: E402
-from app.schemas.diagnosis import DiagnosisRequest, DiagnosisResponse  # noqa: E402
+from app.schemas.diagnosis import DiagnosisRequest, DiagnosisResponse
+from quant_engine.diagnosis import diagnose
 
 router = APIRouter(prefix="/diagnosis", tags=["diagnosis"])
 
