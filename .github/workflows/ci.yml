@@ -18,7 +18,28 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - run: python -m compileall app
+      - run: python -m compileall app ../../packages/quant_engine
+      - name: Quant smoke test
+        run: |
+          PYTHONPATH=../../ python - <<'PY'
+          import numpy as np
+          import pandas as pd
+          from packages.quant_engine import diagnose
+
+          n = 120
+          close = pd.Series(np.linspace(100, 145, n))
+          frame = pd.DataFrame({
+              "open": close - 0.5,
+              "high": close + 1.0,
+              "low": close - 1.0,
+              "close": close,
+              "volume": pd.Series(np.full(n, 100000.0)),
+          })
+          result = diagnose(frame)
+          assert result["indicator_count"] >= 50
+          assert result["regime"] in {"bullish", "bearish", "sideways"}
+          print(result)
+          PY
 
   web:
     runs-on: ubuntu-latest
