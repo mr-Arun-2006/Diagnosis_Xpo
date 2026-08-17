@@ -25,9 +25,11 @@ services:
   api:
     build: ./apps/api
     environment:
-      DATABASE_URL: postgresql+psycopg://diagnosis:change-me@db:5432/diagnosis
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql://diagnosis:change-me@db:5432/diagnosis
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: change-this-in-development
+      CORS_ORIGINS: http://localhost:3000
     ports: ["8000:8000"]
     depends_on:
       db: {condition: service_healthy}
