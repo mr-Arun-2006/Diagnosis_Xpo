@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import pandas as pd
 from fastapi import APIRouter, HTTPException, Query
 
 from app.schemas.diagnosis import DiagnosisRequest, DiagnosisResponse
 from app.services.diagnosis_service import DiagnosisService
-from quant_engine.diagnosis import diagnose
+from packages.quant_engine import diagnose
 
 router = APIRouter(prefix="/diagnosis", tags=["diagnosis"])
 
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/diagnosis", tags=["diagnosis"])
 def create_diagnosis(payload: DiagnosisRequest) -> DiagnosisResponse:
     rows = [bar.model_dump() for bar in payload.bars]
     try:
-        result = diagnose(rows)
+        result = diagnose(pd.DataFrame(rows))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return DiagnosisResponse(
