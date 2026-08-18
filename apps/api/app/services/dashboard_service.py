@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pandas as pd
+
 from app.services.market_queries import MarketQueryService
-from packages.quant_engine.quant_engine import diagnose
+from packages.quant_engine import diagnose
 
 
 class DashboardService:
@@ -15,7 +17,7 @@ class DashboardService:
             history = self.market.history(row["symbol"], exchange, 120)
             if len(history) < 60:
                 continue
-            diagnosis = diagnose(history)
+            diagnosis = diagnose(pd.DataFrame(history))
             scored.append({
                 "symbol": row["symbol"],
                 "sector": row.get("sector"),
