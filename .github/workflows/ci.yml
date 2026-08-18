@@ -6,8 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   api:
+    name: API / Quant validation
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,43 +23,48 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
 
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
 
-      - name: Install API dependencies
-        run: python -m pip install -r requirements.txt
+      - name: Compile Python sources
+        run: python -m compileall -q app ../../packages/quant_engine
 
-      - name: Compile API and quant engine
-        run: python -m compileall app ../../packages/quant_engine
-
-      - name: Quant engine smoke test
+      - name: Import API and quant package
         env:
-          PYTHONPATH: ${{ github.workspace }}
+          PYTHONPATH: ../../
+        run: python -c "from app.main import app; from packages.quant_engine import diagnose; print(app.title); print(diagnose.__name__)"
+
+      - name: Quant smoke test
+        env:
+          PYTHONPATH: ../../
         run: |
           python - <<'PY'
           import numpy as np
           import pandas as pd
           from packages.quant_engine import diagnose
 
-          n = 120
-          close = pd.Series(np.linspace(100.0, 145.0, n))
+          n = 240
+          close = pd.Series(np.linspace(100, 145, n), dtype=float)
           frame = pd.DataFrame({
               "open": close - 0.5,
               "high": close + 1.0,
               "low": close - 1.0,
               "close": close,
-              "volume": 100000.0,
+              "volume": pd.Series(np.full(n, 100000.0), dtype=float),
           })
-
           result = diagnose(frame)
-          assert result["indicator_count"] >= 50
+          assert result["indicator_count"] >= 60
           assert result["regime"] in {"bullish", "bearish", "sideways"}
-          print(f"Quant smoke test passed: {result['indicator_count']} indicators, regime={result['regime']}")
+          assert 0 <= result["score"] <= 100
+          print(result)
           PY
 
   web:
+    name: Web production build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -64,13 +73,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install web dependencies
-        run: npm install
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
-      - name: Build web application
+      - name: Production build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
         run: npm run build
