@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.diagnosis import router as diagnosis_router
+from app.api.routes.eod import router as eod_router
 from app.api.routes.health import router as health_router
 from app.api.routes.ingestion import router as ingestion_router
 from app.api.routes.instruments import router as instruments_router
@@ -22,8 +23,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="Diagnosis_Xpo API",
-    version="0.6.0",
-    description="Indian market intelligence API with validated EOD ingestion and quantitative diagnosis.",
+    version="0.7.0",
+    description="Indian market intelligence API with provider-managed EOD ingestion and quantitative diagnosis.",
     lifespan=lifespan,
 )
 
@@ -39,6 +40,7 @@ app.include_router(health_router, prefix="/api/v1")
 app.include_router(market_router, prefix="/api/v1")
 app.include_router(instruments_router, prefix="/api/v1")
 app.include_router(ingestion_router, prefix="/api/v1")
+app.include_router(eod_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(diagnosis_router, prefix="/api/v1")
 app.include_router(screener_router, prefix="/api/v1")
@@ -46,4 +48,4 @@ app.include_router(screener_router, prefix="/api/v1")
 
 @app.get("/")
 def root():
-    return {"name": settings.app_name, "status": "ok", "version": "0.6.0", "docs": "/docs"}
+    return {"name": settings.app_name, "status": "ok", "version": "0.7.0", "docs": "/docs"}
