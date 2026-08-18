@@ -1,44 +1,133 @@
 # Diagnosis_Xpo Architecture
 
-## Runtime
+## 1. System boundary
 
 ```text
-Browser
-  -> Next.js web
-  -> FastAPI API
-       -> PostgreSQL (users, instruments, metadata, diagnoses)
-       -> Redis (cache, realtime, task queue)
-       -> Quant Engine (deterministic calculations)
-       -> AI Engine (evidence-grounded explanation)
-       -> Market Data Adapters (NSE/BSE EOD, configurable live/F&O)
-
-Historical analytics:
-raw files -> validation -> normalization -> Parquet -> DuckDB/Quant Engine
+                         ┌──────────────────────────────┐
+                         │          Web / Mobile        │
+                         │ Next.js + blue/white design │
+                         └──────────────┬───────────────┘
+                                        │ HTTPS
+                         ┌──────────────▼───────────────┐
+                         │          FastAPI API         │
+                         │ auth · market · analytics    │
+                         └───────┬─────────┬─────────────┘
+                                 │         │
+                    ┌────────────▼───┐ ┌──▼────────────────┐
+                    │ PostgreSQL     │ │ Redis              │
+                    │ users + EOD    │ │ cache + jobs       │
+                    └───────┬────────┘ └────────┬──────────┘
+                            │                   │
+                 ┌──────────▼──────────┐ ┌──────▼───────────┐
+                 │ Quant Engine        │ │ AI Engine         │
+                 │ deterministic       │ │ evidence-grounded │
+                 └──────────▲──────────┘ └────────▲─────────┘
+                            │                     │
+                 ┌──────────┴─────────────────────┴──────┐
+                 │              Data Plane                │
+                 │ official NSE/BSE + provider fallback │
+                 └───────────────────────────────────────┘
 ```
 
-## Data contracts
+## 2. Repository structure
 
-All providers must map into a common instrument/quote/OHLCV contract. Provider-specific fields remain inside adapters. The frontend never calls a market provider directly.
+```text
+Diagnosis_Xpo/
+├── apps/
+│   ├── api/                 # FastAPI application
+│   └── web/                 # Next.js application
+├── packages/
+│   ├── contracts/           # canonical cross-layer data contracts
+│   ├── market-data/         # provider adapters and validation
+│   ├── data_pipeline/       # ingestion orchestration
+│   ├── quant_engine/        # indicators, regime, score, diagnosis
+│   └── ai_engine/           # evidence packaging and LLM boundary
+├── docs/                    # build/run/product documentation
+├── .github/workflows/       # CI
+├── docker-compose.yml
+└── .env.example
+```
 
-## Pipeline stages
+Python package directories use underscores. Provider-specific implementation must never leak into API or UI code.
 
-1. Acquire raw source.
-2. Persist raw payload/file.
-3. Validate schema, trading date, symbols, duplicates and numeric ranges.
-4. Normalize exchange/provider fields.
-5. Store canonical data.
-6. Compute features and regimes.
-7. Publish validated results to APIs/cache.
-8. Generate AI explanation from structured evidence.
+## 3. EOD data flow
 
-## AI boundary
+```text
+Source selection
+   ↓
+Official NSE/BSE EOD source
+   ↓ if unavailable/explicitly configured
+Provider fallback
+   ↓
+Raw archive
+   ↓
+Parse
+   ↓
+Schema + trading-date + symbol + OHLCV validation
+   ↓
+Deduplicate / normalize
+   ↓
+PostgreSQL canonical store
+   ↓
+Parquet/DuckDB analytical representation
+   ↓
+Quant features
+   ↓
+API/cache
+```
 
-The quantitative engine owns calculations. The AI engine receives a typed evidence package containing price, indicators, regime, sector/index context, key levels and confidence. The AI cannot be the source of truth for numerical market values.
+Official exchange data is preferred. Unofficial sources are adapters/fallbacks and are marked with provenance; they are never silently treated as official.
 
-## Security
+## 4. Quant flow
 
-Passwords are hashed; secrets remain in environment configuration; RBAC is enforced in FastAPI; admin routes are protected server-side; market-provider keys are never exposed to the browser.
+```text
+OHLCV → trend → momentum → volatility → volume → structure
+      → 50+ indicators → regime → patterns → key levels
+      → deterministic score/confidence → diagnosis evidence
+```
 
-## UI
+## 5. AI flow
 
-Blue/white terminal-inspired design, Space Grotesk, restrained animation, accessible contrast, responsive layouts. Landing page may use an expressive cursor; application pages use precise pointer/crosshair interactions to avoid distraction.
+```text
+Quant evidence + sector/index/F&O context
+                ↓
+         typed evidence object
+                ↓
+       configured LLM provider
+                ↓
+ explanation + uncertainty + education
+                ↓
+       EN / TA / HI / GU
+```
+
+Numerical truth remains in the database/quant engine.
+
+## 6. Product navigation
+
+```text
+Landing /
+  ↓
+Login / Register
+  ↓
+Dashboard
+  ├── Diagnosis
+  ├── Compare
+  ├── Sectors
+  ├── NSE vs BSE
+  ├── Screener
+  ├── F&O Chain
+  ├── Games
+  ├── Settings
+  └── Admin (RBAC)
+```
+
+## 7. Reliability gates
+
+A stage is complete only when:
+- its data contract exists;
+- loading, empty and error states exist;
+- backend and frontend are connected;
+- secrets are environment-only;
+- automated tests pass;
+- Docker startup is healthy;
+- CI is green.
