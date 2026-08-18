@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pandas as pd
+
 from app.services.market_queries import MarketQueryService
-from packages.quant_engine.quant_engine import diagnose
+from packages.quant_engine import diagnose
 
 
 class ScreenerService:
@@ -15,12 +17,12 @@ class ScreenerService:
             history = self.market.history(row["symbol"], payload.exchange, 300)
             if len(history) < 60:
                 continue
-            result = diagnose(history)
+            result = diagnose(pd.DataFrame(history))
             score = float(result.get("score", 0))
             regime = str(result.get("regime", "unknown"))
-            indicators = result.get("indicators", {})
-            rsi = indicators.get("rsi")
-            relative_volume = indicators.get("relative_volume")
+            latest = result.get("latest", {})
+            rsi = latest.get("rsi_14")
+            relative_volume = latest.get("relative_volume_20")
             if payload.sector and (row.get("sector") or "").lower() != payload.sector.lower():
                 continue
             if payload.regime and regime.lower() != payload.regime.lower():
@@ -33,6 +35,11 @@ class ScreenerService:
                 continue
             if payload.min_relative_volume is not None and (relative_volume is None or relative_volume < payload.min_relative_volume):
                 continue
-            results.append({"symbol": row["symbol"], "exchange": payload.exchange, "sector": row.get("sector"), "price": float(row["close"]), "score": score, "regime": regime, "rsi": rsi, "relative_volume": relative_volume})
+            results.append({
+                "symbol": row["symbol"], "exchange": payload.exchange,
+                "sector": row.get("sector"), "price": float(row["close"]),
+                "score": score, "regime": regime, "rsi": rsi,
+                "relative_volume": relative_volume,
+            })
         results.sort(key=lambda item: item["score"], reverse=True)
         return results[:payload.limit]
