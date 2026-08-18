@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import pandas as pd
+
 from app.services.market_queries import MarketQueryService
-from packages.quant_engine.quant_engine import diagnose
+from packages.quant_engine import diagnose
 
 
 class DiagnosisService:
@@ -12,7 +14,8 @@ class DiagnosisService:
         history = self.market.history(symbol, exchange, limit)
         if len(history) < 60:
             raise ValueError(f"At least 60 validated sessions are required; found {len(history)}")
-        result = diagnose(history)
+        frame = pd.DataFrame(history)
+        result = diagnose(frame)
         return {
             "symbol": symbol.upper(),
             "exchange": exchange.upper(),
