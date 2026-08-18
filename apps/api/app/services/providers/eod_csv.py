@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 
@@ -14,11 +14,7 @@ class EODProviderConfig:
 
 
 def parse_eod_csv(payload: bytes, exchange: str, source: str) -> list[dict]:
-    """Parse a provider CSV into the normalized ingestion contract.
-
-    Provider-specific column aliases are intentionally handled here so the
-    rest of the pipeline receives one stable schema.
-    """
+    """Parse provider CSV data into the stable EOD ingestion contract."""
     text = payload.decode("utf-8-sig", errors="replace")
     reader = csv.DictReader(io.StringIO(text))
     aliases = {
@@ -37,21 +33,20 @@ def parse_eod_csv(payload: bytes, exchange: str, source: str) -> list[dict]:
                 return str(row[name]).strip()
         raise ValueError(f"Missing provider field; expected one of {names}")
 
-    rows: list[dict] = []
-    for row in reader:
-        raw_date = value(row, aliases["date"])
+    def parse_date(raw: str) -> date:
         for fmt in ("%d-%b-%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"):
             try:
-                trading_date = date.fromisoformat(date.strptime(raw_date, fmt).isoformat())
-                break
+                return datetime.strptime(raw, fmt).date()
             except ValueError:
-                trading_date = None
-        if trading_date is None:
-            raise ValueError(f"Unsupported trading date: {raw_date}")
+                pass
+        raise ValueError(f"Unsupported trading date: {raw}")
+
+    rows: list[dict] = []
+    for row in reader:
         rows.append({
             "symbol": value(row, aliases["symbol"]).upper(),
             "exchange": exchange.upper(),
-            "trading_date": trading_date.isoformat(),
+            "trading_date": parse_date(value(row, aliases["date"])).isoformat(),
             "open": Decimal(value(row, aliases["open"])),
             "high": Decimal(value(row, aliases["high"])),
             "low": Decimal(value(row, aliases["low"])),
