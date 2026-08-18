@@ -17,6 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/api/requirements.txt
+      - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
       - run: python -m compileall app ../../packages/quant_engine
       - name: Quant smoke test
@@ -51,7 +54,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: apps/web/package.json
       - run: npm install
       - run: npm run build
