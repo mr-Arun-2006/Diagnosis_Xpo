@@ -20,5 +20,5 @@ class DiagnosisService:
             "symbol": symbol.upper(),
             "exchange": exchange.upper(),
             "sessions": len(history),
-            "diagnosis": result,
+            **result,
         }
