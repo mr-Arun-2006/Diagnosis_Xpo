@@ -10,6 +10,9 @@ class Settings:
     access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_MINUTES", "30"))
     refresh_token_days: int = int(os.getenv("REFRESH_TOKEN_DAYS", "30"))
     cors_origins: list[str] = [x.strip() for x in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if x.strip()]
+    ai_base_url: str = os.getenv("AI_BASE_URL", "")
+    ai_model: str = os.getenv("AI_MODEL", "")
+    ai_api_key: str = os.getenv("AI_API_KEY", "")
 
 
 settings = Settings()

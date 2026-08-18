@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes.ai import router as ai_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.diagnosis import router as diagnosis_router
@@ -24,8 +25,8 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="Diagnosis_Xpo API",
-    version="0.8.0",
-    description="Indian market intelligence API with provider-managed EOD ingestion and quantitative diagnosis.",
+    version="1.0.0",
+    description="Evidence-first Indian market intelligence API.",
     lifespan=lifespan,
 )
 
@@ -37,17 +38,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health_router, prefix="/api/v1")
-app.include_router(market_router, prefix="/api/v1")
-app.include_router(instruments_router, prefix="/api/v1")
-app.include_router(ingestion_router, prefix="/api/v1")
-app.include_router(eod_router, prefix="/api/v1")
-app.include_router(dashboard_router, prefix="/api/v1")
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(diagnosis_router, prefix="/api/v1")
-app.include_router(screener_router, prefix="/api/v1")
+for router in (
+    health_router,
+    market_router,
+    instruments_router,
+    ingestion_router,
+    eod_router,
+    dashboard_router,
+    auth_router,
+    diagnosis_router,
+    screener_router,
+    ai_router,
+):
+    app.include_router(router, prefix="/api/v1")
 
 
 @app.get("/")
 def root():
-    return {"name": settings.app_name, "status": "ok", "version": "0.8.0", "docs": "/docs"}
+    return {"name": settings.app_name, "status": "ok", "version": "1.0.0", "docs": "/docs"}
