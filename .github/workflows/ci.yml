@@ -13,35 +13,46 @@ jobs:
       run:
         working-directory: apps/api
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: pip
-          cache-dependency-path: apps/api/requirements.txt
-      - run: python -m pip install --upgrade pip
-      - run: pip install -r requirements.txt
-      - run: python -m compileall app ../../packages/quant_engine
-      - name: Quant smoke test
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install API dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Compile API and quant engine
+        run: python -m compileall app ../../packages/quant_engine
+
+      - name: Quant engine smoke test
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          PYTHONPATH=../../ python - <<'PY'
+          python - <<'PY'
           import numpy as np
           import pandas as pd
           from packages.quant_engine import diagnose
 
           n = 120
-          close = pd.Series(np.linspace(100, 145, n))
+          close = pd.Series(np.linspace(100.0, 145.0, n))
           frame = pd.DataFrame({
               "open": close - 0.5,
               "high": close + 1.0,
               "low": close - 1.0,
               "close": close,
-              "volume": pd.Series(np.full(n, 100000.0)),
+              "volume": 100000.0,
           })
+
           result = diagnose(frame)
           assert result["indicator_count"] >= 50
           assert result["regime"] in {"bullish", "bearish", "sideways"}
-          print(result)
+          print(f"Quant smoke test passed: {result['indicator_count']} indicators, regime={result['regime']}")
           PY
 
   web:
@@ -50,9 +61,18 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-      - run: npm run build
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build web application
+        run: npm run build
